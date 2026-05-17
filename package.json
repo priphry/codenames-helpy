@@ -1,0 +1,20 @@
+{
+  "name": "codenames-helpy",
+  "version": "1.0.0",
+  "description": "Offline PWA: photograph the Codenames word grid + key card, get a tappable checklist of your team's words.",
+  "type": "module",
+  "scripts": {
+    "start": "python3 -m http.server 8137",
+    "assets": "node tools/make-assets.mjs",
+    "test": "node tests/logic.test.mjs && node tests/keycard-image.test.mjs",
+    "test:ocr": "node tests/ocr-image.test.mjs"
+  },
+  "repository": {
+    "type": "git",
+    "url": "http://local_proxy@127.0.0.1:33785/git/priphry/codenames-helpy"
+  },
+  "license": "ISC",
+  "devDependencies": {
+    "tesseract.js": "^5.1.1"
+  }
+}
