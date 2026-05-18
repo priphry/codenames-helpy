@@ -63,6 +63,7 @@ export async function readWordGrid(img, onProgress) {
       text: (w.text || '').trim(),
       cx: (bb.x0 + bb.x1) / 2,
       cy: (bb.y0 + bb.y1) / 2,
+      h: Math.abs(bb.y1 - bb.y0),
       conf: w.confidence || 0,
     };
   }).filter(w => w.text && Number.isFinite(w.cx) && Number.isFinite(w.cy));

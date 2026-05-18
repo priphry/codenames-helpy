@@ -62,8 +62,15 @@ export function bucketWordsToGrid(words) {
   for (let i = 0; i < CELLS; i++) {
     const cell = buckets[i];
     if (cell.length === 0) continue;
-    // Tesseract sometimes splits one word into fragments — stitch by x order.
-    const txt = cell.slice().sort((a, b) => a.cx - b.cx)
+    // Codenames cards print the word twice: large in the centre and a tiny
+    // upside-down copy at the top. Keep only the large text (by box height),
+    // which also discards the faint key/agent icon. Multi-token words like
+    // "NEW YORK" are both large so they survive and get stitched by x order.
+    const maxH = Math.max(...cell.map(w => w.h || 0));
+    const dominant = maxH > 0
+      ? cell.filter(w => (w.h || 0) >= maxH * 0.55)
+      : cell;
+    const txt = dominant.sort((a, b) => a.cx - b.cx)
       .map(w => w.text).join('')
       .toUpperCase().replace(/[^A-Z]/g, '');
     out[i] = txt;

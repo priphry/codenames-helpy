@@ -1,10 +1,10 @@
 // End-to-end key-card pipeline against the real generated PNG.
-// Decodes samples/keycard.png and runs the SAME sampler the browser uses.
+// Decodes samples/keycard.png and runs the SAME quad sampler the browser uses.
 import { inflateSync } from 'node:zlib';
 import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { dirname, join } from 'node:path';
-import { sampleKeyColors } from '../js/keycard.js';
+import { sampleKeyByQuad } from '../js/keycard.js';
 import { validateKey } from '../js/grid.js';
 import { SAMPLE_KEY } from '../tools/make-assets.mjs';
 
@@ -32,16 +32,23 @@ function decodePNG(buf) {
 
 const { W, H, px } = decodePNG(readFileSync(join(ROOT, 'samples/keycard.png')));
 const getPixel = (x, y) => {
-  const p = (y * W + x) * 4;
+  if (x < 0 || y < 0 || x >= W || y >= H) return null;
+  const p = ((y | 0) * W + (x | 0)) * 4;
   return [px[p], px[p + 1], px[p + 2]];
 };
 
-const { colors } = sampleKeyColors(getPixel, W, H);
+// Synthetic card: 6% border, then the 5x5 coloured area. Tap those 4 corners.
+const m = 0.06;
+const quad = [
+  { x: W * m, y: H * m }, { x: W * (1 - m), y: H * m },
+  { x: W * (1 - m), y: H * (1 - m) }, { x: W * m, y: H * (1 - m) },
+];
+const { colors } = sampleKeyByQuad(getPixel, quad);
 
 let fail = 0;
 const mismatches = colors.map((c, i) => c === SAMPLE_KEY[i] ? null : i).filter(x => x !== null);
 if (mismatches.length) { fail++; console.log('FAIL  cell mismatches at', mismatches); }
-else console.log('  ok  all 25 cells classified correctly from real PNG');
+else console.log('  ok  all 25 cells classified correctly from real PNG (quad sampler)');
 
 const v = validateKey(colors);
 if (!v.ok || v.startingTeam !== 'red') { fail++; console.log('FAIL  validateKey', v); }
