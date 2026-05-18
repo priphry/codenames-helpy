@@ -1,8 +1,11 @@
-// Offline-first: precache the app shell + vendored OCR engine so the tool
-// works at the table with no signal. Bump CACHE to ship updates.
-const CACHE = 'codenames-helper-v1';
+// Offline-first, but memory-friendly on phones: only the tiny app shell is
+// precached on install. The heavy OCR engine (~8 MB of wasm + language data)
+// is cached lazily by the fetch handler the first time OCR actually runs, so
+// install never spikes memory. Bump CACHE to ship updates.
+const CACHE = 'codenames-helper-v2';
 
-const ASSETS = [
+// Small, fast, always needed — safe to fetch together on install.
+const SHELL = [
   './',
   './index.html',
   './styles.css',
@@ -15,16 +18,10 @@ const ASSETS = [
   './icons/icon-192.png',
   './icons/icon-512.png',
   './vendor/tesseract/tesseract.min.js',
-  './vendor/tesseract/worker.min.js',
-  './vendor/tesseract/core/tesseract-core-simd-lstm.js',
-  './vendor/tesseract/core/tesseract-core-simd-lstm.wasm',
-  './vendor/tesseract/core/tesseract-core-lstm.js',
-  './vendor/tesseract/core/tesseract-core-lstm.wasm',
-  './vendor/tesseract/lang/eng.traineddata.gz',
 ];
 
 self.addEventListener('install', e => {
-  e.waitUntil(caches.open(CACHE).then(c => c.addAll(ASSETS)).then(() => self.skipWaiting()));
+  e.waitUntil(caches.open(CACHE).then(c => c.addAll(SHELL)).then(() => self.skipWaiting()));
 });
 
 self.addEventListener('activate', e => {
@@ -35,7 +32,8 @@ self.addEventListener('activate', e => {
   );
 });
 
-// Cache-first; fall back to network and store new GETs (e.g. samples).
+// Cache-first; anything not precached (the big Tesseract core/wasm/lang) is
+// fetched from network once and then cached for offline use thereafter.
 self.addEventListener('fetch', e => {
   if (e.request.method !== 'GET') return;
   e.respondWith(
