@@ -1,0 +1,112 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#0f172a">
+<title>Codenames Spymaster Helper</title>
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="icons/icon-192.png">
+<link rel="apple-touch-icon" href="icons/icon-192.png">
+<link rel="stylesheet" href="styles.css">
+<script src="vendor/tesseract/tesseract.min.js"></script>
+</head>
+<body>
+<div id="app">
+
+  <!-- HOME -->
+  <section class="screen" data-screen="home">
+    <header class="app-header"><h1>Codenames<br><span>Spymaster Helper</span></h1></header>
+    <p class="lede">Snap the word grid and the key card. Get a tappable checklist of <strong>your</strong> words — assassin flagged, opponents dimmed.</p>
+    <div class="stack">
+      <button class="btn primary" id="btn-new">New game</button>
+      <button class="btn" id="btn-resume" hidden>Resume game in progress</button>
+    </div>
+    <p class="fineprint">Everything runs on your phone. No internet needed after install. No photos leave the device.</p>
+  </section>
+
+  <!-- CAPTURE WORDS -->
+  <section class="screen" data-screen="words" hidden>
+    <header class="app-header sm"><button class="link back" data-back="home">‹ Back</button><h2>1 / 2 · Word grid</h2></header>
+    <p class="lede">Photograph the <strong>5×5 word cards</strong> on the table. Fill the frame, hold steady, avoid glare.</p>
+    <label class="capture">
+      <input type="file" accept="image/*" capture="environment" id="words-file" hidden>
+      <span class="capture-cta">Take / choose photo</span>
+    </label>
+    <div class="preview-wrap"><img id="words-preview" alt="" hidden></div>
+    <div id="words-progress" class="progress" hidden><div class="bar"><i></i></div><span class="ptext">Reading words…</span></div>
+    <div class="stack">
+      <button class="btn primary" id="words-run" disabled>Read words</button>
+    </div>
+  </section>
+
+  <!-- CAPTURE KEY -->
+  <section class="screen" data-screen="key" hidden>
+    <header class="app-header sm"><button class="link back" data-back="words">‹ Back</button><h2>2 / 2 · Key card</h2></header>
+    <p class="lede">Photograph the <strong>secret key card</strong> in the <em>same orientation</em> you viewed the table. Fill the frame.</p>
+    <label class="capture">
+      <input type="file" accept="image/*" capture="environment" id="key-file" hidden>
+      <span class="capture-cta">Take / choose photo</span>
+    </label>
+    <div class="preview-wrap"><img id="key-preview" alt="" hidden></div>
+    <div class="stack">
+      <button class="btn primary" id="key-run" disabled>Read key card</button>
+    </div>
+  </section>
+
+  <!-- REVIEW -->
+  <section class="screen" data-screen="review" hidden>
+    <header class="app-header sm"><button class="link back" data-back="key">‹ Back</button><h2>Check &amp; confirm</h2></header>
+    <p class="lede">Tap any cell to fix a misread word. Colours come from the key card.</p>
+    <div class="team-pick">
+      <span>My team:</span>
+      <div class="seg" id="team-seg">
+        <button data-team="red" class="active">Red</button>
+        <button data-team="blue">Blue</button>
+      </div>
+    </div>
+    <div id="review-grid" class="rgrid"></div>
+    <div class="rotate-row">
+      <button class="btn small" id="rotate-key">⟳ Rotate key vs words</button>
+    </div>
+    <div id="review-banner" class="banner"></div>
+    <div class="stack">
+      <button class="btn primary" id="start-game">Start game</button>
+    </div>
+  </section>
+
+  <!-- PLAY -->
+  <section class="screen" data-screen="play" hidden>
+    <header class="play-header">
+      <div class="counts" id="play-counts"></div>
+    </header>
+    <div class="assassin-box" id="assassin-box"></div>
+    <h3 class="sec-title">Your words — <span id="mine-left"></span></h3>
+    <div id="mine-list" class="word-grid mine"></div>
+    <h3 class="sec-title muted">Avoid (tap when revealed)</h3>
+    <div id="avoid-list" class="word-grid avoid"></div>
+    <footer class="play-footer">
+      <button class="btn small" id="undo-btn" disabled>↶ Undo</button>
+      <button class="btn small" id="rescan-btn">Re-scan</button>
+      <button class="btn small danger" id="newgame-btn">New game</button>
+    </footer>
+  </section>
+
+</div>
+
+<!-- Inline word editor -->
+<dialog id="edit-dialog">
+  <form method="dialog" class="edit-form">
+    <label>Edit word
+      <input type="text" id="edit-input" autocapitalize="characters" autocomplete="off" spellcheck="false">
+    </label>
+    <menu>
+      <button value="cancel" class="btn small">Cancel</button>
+      <button value="ok" class="btn small primary" id="edit-ok">Save</button>
+    </menu>
+  </form>
+</dialog>
+
+<script type="module" src="js/app.js"></script>
+</body>
+</html>
