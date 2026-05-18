@@ -54,9 +54,23 @@
     </div>
   </section>
 
+  <!-- KEY CROP (tap 4 corners) -->
+  <section class="screen" data-screen="keycrop" hidden>
+    <header class="app-header sm"><button class="link back" data-back="key">‹ Back</button><h2>Mark the key grid</h2></header>
+    <p class="lede">Tap the <strong>4 corners of the coloured grid</strong> in order: top-left, top-right, bottom-right, bottom-left. Pinch-zoom the page if it's small.</p>
+    <div class="cropwrap" id="cropwrap">
+      <img id="crop-img" alt="">
+      <canvas id="crop-canvas"></canvas>
+    </div>
+    <div class="stack">
+      <button class="btn small" id="crop-reset">Reset taps</button>
+      <button class="btn primary" id="crop-go" disabled>Use this</button>
+    </div>
+  </section>
+
   <!-- REVIEW -->
   <section class="screen" data-screen="review" hidden>
-    <header class="app-header sm"><button class="link back" data-back="key">‹ Back</button><h2>Check &amp; confirm</h2></header>
+    <header class="app-header sm"><button class="link back" data-back="keycrop">‹ Back</button><h2>Check &amp; confirm</h2></header>
     <p class="lede">Tap any cell to fix a misread word. Colours come from the key card.</p>
     <div class="team-pick">
       <span>My team:</span>

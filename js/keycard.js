@@ -1,52 +1,10 @@
-// Key-card photo -> 25 colours. Assumes the user framed the card to roughly
-// fill the photo (per the "full auto" capture flow).
+// Key-card photo -> 25 colours. The card is usually small and angled within
+// a table photo, so we sample from a quad the user taps (the 4 corners of
+// the coloured grid) using bilinear interpolation — robust to perspective.
 import { GRID, CELLS, classifyColor } from './grid.js';
 
-/**
- * Pure sampler — shared by the browser and the Node tests.
- * @param {(x:number,y:number)=>[number,number,number]} getPixel
- * @param {number} W image width
- * @param {number} H image height
- * @returns {{colors:string[], samples:number[][]}}
- */
-export function sampleKeyColors(getPixel, W, H) {
-  // A thin outer band is the coloured border (starting-team marker); read the
-  // 5x5 grid from the inset area and only sample each cell's inner ~40%.
-  const inset = 0.06;
-  const gx0 = W * inset, gy0 = H * inset;
-  const gW = W * (1 - 2 * inset), gH = H * (1 - 2 * inset);
-  const cellW = gW / GRID, cellH = gH / GRID;
-  const padX = cellW * 0.30, padY = cellH * 0.30;
-
-  const colors = new Array(CELLS);
-  const samples = new Array(CELLS);
-  for (let r = 0; r < GRID; r++) {
-    for (let c = 0; c < GRID; c++) {
-      const x0 = Math.floor(gx0 + c * cellW + padX);
-      const y0 = Math.floor(gy0 + r * cellH + padY);
-      const x1 = Math.ceil(gx0 + (c + 1) * cellW - padX);
-      const y1 = Math.ceil(gy0 + (r + 1) * cellH - padY);
-      let sr = 0, sg = 0, sb = 0, n = 0;
-      for (let y = y0; y < y1; y++) {
-        for (let x = x0; x < x1; x++) {
-          const p = getPixel(x, y);
-          sr += p[0]; sg += p[1]; sb += p[2]; n++;
-        }
-      }
-      const rgb = n ? [sr / n, sg / n, sb / n] : [0, 0, 0];
-      const i = r * GRID + c;
-      samples[i] = rgb;
-      colors[i] = classifyColor(rgb[0], rgb[1], rgb[2]);
-    }
-  }
-  return { colors, samples };
-}
-
-/**
- * Browser entry: rasterise the photo and sample it.
- * @param {HTMLImageElement|HTMLCanvasElement} img
- */
-export function analyzeKeyCard(img) {
+/** Rasterise an image to a bounds-checked pixel accessor. */
+export function imagePixels(img) {
   const W = img.naturalWidth || img.width;
   const H = img.naturalHeight || img.height;
   const cv = document.createElement('canvas');
@@ -55,8 +13,56 @@ export function analyzeKeyCard(img) {
   ctx.drawImage(img, 0, 0, W, H);
   const { data } = ctx.getImageData(0, 0, W, H);
   const getPixel = (x, y) => {
-    const p = (y * W + x) * 4;
+    if (x < 0 || y < 0 || x >= W || y >= H) return null;
+    const p = ((y | 0) * W + (x | 0)) * 4;
     return [data[p], data[p + 1], data[p + 2]];
   };
-  return sampleKeyColors(getPixel, W, H);
+  return { getPixel, W, H };
+}
+
+const lerp = (a, b, t) => ({ x: a.x + (b.x - a.x) * t, y: a.y + (b.y - a.y) * t });
+
+/**
+ * @param {(x:number,y:number)=>[number,number,number]|null} getPixel
+ * @param {[{x,y},{x,y},{x,y},{x,y}]} quad  TL, TR, BR, BL of the coloured grid
+ * @returns {{colors:string[], samples:number[][]}}
+ */
+// Vote across many points in the inner cell instead of averaging one patch:
+// each tile has a white centre icon, so a mean would wash red/blue toward
+// tan. A colour wins if it's a meaningful share; dark -> assassin; else tan.
+function decideCell(getPixel, TL, TR, BL, BR, c, r) {
+  const tally = { red: 0, blue: 0, tan: 0, black: 0 };
+  let total = 0;
+  const K = 6;
+  for (let sy = 0; sy <= K; sy++) {
+    for (let sx = 0; sx <= K; sx++) {
+      const u = (c + 0.15 + 0.70 * sx / K) / GRID;
+      const v = (r + 0.15 + 0.70 * sy / K) / GRID;
+      const p = lerp(lerp(TL, TR, u), lerp(BL, BR, u), v);
+      let sr = 0, sg = 0, sb = 0, n = 0;
+      for (let dy = -1; dy <= 1; dy++)
+        for (let dx = -1; dx <= 1; dx++) {
+          const px = getPixel(p.x + dx, p.y + dy);
+          if (px) { sr += px[0]; sg += px[1]; sb += px[2]; n++; }
+        }
+      if (!n) continue;
+      tally[classifyColor(sr / n, sg / n, sb / n)]++;
+      total++;
+    }
+  }
+  if (!total) return 'tan';
+  const colored = Math.max(tally.red, tally.blue);
+  if (colored >= total * 0.28)
+    return tally.red >= tally.blue ? 'red' : 'blue';
+  if (tally.black >= total * 0.30) return 'black';
+  return 'tan';
+}
+
+export function sampleKeyByQuad(getPixel, quad) {
+  const [TL, TR, BR, BL] = quad;
+  const colors = new Array(CELLS);
+  for (let r = 0; r < GRID; r++)
+    for (let c = 0; c < GRID; c++)
+      colors[r * GRID + c] = decideCell(getPixel, TL, TR, BL, BR, c, r);
+  return { colors };
 }

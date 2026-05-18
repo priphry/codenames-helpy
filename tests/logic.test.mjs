@@ -38,6 +38,7 @@ SAMPLE_WORDS.forEach((wd, i) => {
     text: wd,
     cx: c * 300 + 150 + (Math.random() * 30 - 15),
     cy: r * 240 + 120 + (Math.random() * 24 - 12),
+    h: 40,
     conf: 90,
   });
 });
@@ -45,11 +46,18 @@ ok('bucket reconstructs row-major grid',
   eq(bucketWordsToGrid(boxes), SAMPLE_WORDS));
 // Realistic: cell 0's word arrives as two close fragments amid the full grid.
 const fragBoxes = boxes.slice(1).concat([
-  { text: 'AP',  cx: 140, cy: 120, conf: 80 },
-  { text: 'PLE', cx: 165, cy: 120, conf: 80 },
+  { text: 'AP',  cx: 140, cy: 120, h: 40, conf: 80 },
+  { text: 'PLE', cx: 165, cy: 120, h: 40, conf: 80 },
 ]);
 ok('bucket stitches split fragments',
   bucketWordsToGrid(fragBoxes)[0] === 'APPLE');
+// Codenames cards: tiny upside-down duplicate must be dropped (smaller box).
+// Add a mirrored mini-copy into cell 0 amid the full grid; main word wins.
+const dupBoxes = boxes.concat([
+  { text: 'EVPPA', cx: boxes[0].cx, cy: boxes[0].cy - 20, h: 12, conf: 55 },
+]);
+ok('bucket keeps the large word, drops tiny duplicate',
+  bucketWordsToGrid(dupBoxes)[0] === 'APPLE');
 ok('bucket handles empty input',
   bucketWordsToGrid([]).length === 25 &&
   bucketWordsToGrid([]).every(s => s === ''));

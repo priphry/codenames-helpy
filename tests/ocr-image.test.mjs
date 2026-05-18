@@ -32,6 +32,7 @@ const boxes = acc.map(w => ({
   text: (w.text || '').trim(),
   cx: (w.bbox.x0 + w.bbox.x1) / 2,
   cy: (w.bbox.y0 + w.bbox.y1) / 2,
+  h: Math.abs(w.bbox.y1 - w.bbox.y0),
   conf: w.confidence,
 })).filter(w => w.text);
 

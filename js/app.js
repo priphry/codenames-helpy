@@ -1,6 +1,6 @@
 import { CELLS, rotateGrid90, validateKey } from './grid.js';
 import { readWordGrid } from './ocr.js';
-import { analyzeKeyCard } from './keycard.js';
+import { sampleKeyByQuad, imagePixels } from './keycard.js';
 import {
   buildGame, categorize, toggleRevealed,
   saveGame, loadGame, clearGame,
@@ -99,9 +99,76 @@ $('#key-file').addEventListener('change', e => {
 });
 
 $('#key-run').addEventListener('click', () => {
+  show('keycrop');
+  requestAnimationFrame(setupCrop);
+});
+
+/* ---------------- KEY CROP (tap 4 corners) ---------------- */
+let cropTaps = [];      // displayed-pixel coords
+let cropScale = 1;      // natural / displayed
+
+function setupCrop() {
+  const img = $('#crop-img');
+  const cv = $('#crop-canvas');
+  cropTaps = [];
+  $('#crop-go').disabled = true;
+  const sizeCanvas = () => {
+    if (!img.clientWidth) { requestAnimationFrame(sizeCanvas); return; }
+    cv.width = img.clientWidth;
+    cv.height = img.clientHeight;
+    cropScale = (keyImg.naturalWidth || keyImg.width) / img.clientWidth;
+    drawCrop();
+  };
+  img.onload = sizeCanvas;
+  img.src = keyImg.src;
+  if (img.complete) sizeCanvas();
+}
+
+function drawCrop() {
+  const cv = $('#crop-canvas');
+  const ctx = cv.getContext('2d');
+  ctx.clearRect(0, 0, cv.width, cv.height);
+  if (cropTaps.length > 1) {
+    ctx.beginPath();
+    ctx.moveTo(cropTaps[0].x, cropTaps[0].y);
+    cropTaps.slice(1).forEach(p => ctx.lineTo(p.x, p.y));
+    if (cropTaps.length === 4) ctx.closePath();
+    ctx.strokeStyle = '#22d3ee';
+    ctx.lineWidth = 2;
+    ctx.stroke();
+  }
+  cropTaps.forEach((p, i) => {
+    ctx.beginPath();
+    ctx.arc(p.x, p.y, 9, 0, 7);
+    ctx.fillStyle = '#22d3ee';
+    ctx.fill();
+    ctx.fillStyle = '#06262b';
+    ctx.font = 'bold 12px system-ui';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText(String(i + 1), p.x, p.y);
+  });
+}
+
+$('#crop-canvas').addEventListener('pointerdown', e => {
+  if (cropTaps.length >= 4) return;
+  const rect = e.currentTarget.getBoundingClientRect();
+  cropTaps.push({ x: e.clientX - rect.left, y: e.clientY - rect.top });
+  $('#crop-go').disabled = cropTaps.length !== 4;
+  drawCrop();
+});
+
+$('#crop-reset').addEventListener('click', () => {
+  cropTaps = [];
+  $('#crop-go').disabled = true;
+  drawCrop();
+});
+
+$('#crop-go').addEventListener('click', () => {
   try {
-    const { colors } = analyzeKeyCard(keyImg);
-    pendingColors = colors;
+    const { getPixel } = imagePixels(keyImg);
+    const quad = cropTaps.map(p => ({ x: p.x * cropScale, y: p.y * cropScale }));
+    pendingColors = sampleKeyByQuad(getPixel, quad).colors;
     renderReview();
     show('review');
   } catch (err) {
