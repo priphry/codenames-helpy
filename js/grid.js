@@ -60,22 +60,51 @@ export function bucketWordsToGrid(words) {
     buckets[row * GRID + col].push(w);
   }
   for (let i = 0; i < CELLS; i++) {
-    const cell = buckets[i];
-    if (cell.length === 0) continue;
-    // Codenames cards print the word twice: large in the centre and a tiny
-    // upside-down copy at the top. Keep only the large text (by box height),
-    // which also discards the faint key/agent icon. Multi-token words like
-    // "NEW YORK" are both large so they survive and get stitched by x order.
-    const maxH = Math.max(...cell.map(w => w.h || 0));
-    const dominant = maxH > 0
-      ? cell.filter(w => (w.h || 0) >= maxH * 0.55)
-      : cell;
-    const txt = dominant.sort((a, b) => a.cx - b.cx)
-      .map(w => w.text).join('')
-      .toUpperCase().replace(/[^A-Z]/g, '');
-    out[i] = txt;
+    out[i] = pickCellWord(buckets[i]);
   }
   return out;
+}
+
+const MIN_CONF = 35; // below this, blank the cell so it shows '?' for a quick fix
+
+// Codenames cards print the word twice: large in the centre and a tiny
+// upside-down copy near the top. Cluster a cell's tokens into horizontal
+// lines by vertical position, then keep the dominant line (widest, tallest,
+// most confident) — this separates the real word from the mirrored mini-line
+// and the faint icon by geometry instead of guessing.
+function pickCellWord(cell) {
+  if (!cell || cell.length === 0) return '';
+  const estW = t => (t.w != null ? t.w : t.text.length * (t.h || 10) * 0.6);
+  const tokens = cell.slice().sort((a, b) => a.cy - b.cy);
+
+  const lines = [];
+  let cur = [];
+  for (const t of tokens) {
+    if (cur.length) {
+      const avgH = cur.reduce((s, x) => s + (x.h || 0), 0) / cur.length;
+      const lastCy = cur[cur.length - 1].cy;
+      if (t.cy - lastCy > 0.8 * Math.max(avgH, 1)) {
+        lines.push(cur); cur = [];
+      }
+    }
+    cur.push(t);
+  }
+  if (cur.length) lines.push(cur);
+
+  let best = null, bestScore = -1, bestConf = 0;
+  for (const ln of lines) {
+    const width = ln.reduce((s, x) => s + estW(x), 0);
+    const avgH = ln.reduce((s, x) => s + (x.h || 0), 0) / ln.length;
+    const avgConf = ln.reduce((s, x) => s + (x.conf || 0), 0) / ln.length;
+    const score = width * Math.max(avgH, 1) * (avgConf + 1);
+    if (score > bestScore) { bestScore = score; best = ln; bestConf = avgConf; }
+  }
+  if (!best) return '';
+
+  const txt = best.sort((a, b) => a.cx - b.cx)
+    .map(x => x.text).join('')
+    .toUpperCase().replace(/[^A-Z]/g, '');
+  return (txt.length >= 2 && bestConf >= MIN_CONF) ? txt : '';
 }
 
 /** Rotate a flat 5x5 array 90° clockwise (used for key/word orientation fixes). */
